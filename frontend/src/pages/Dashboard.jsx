@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import { CSVLink } from 'react-csv';
 
 import {
-  Pie
+  Pie,
+  Bar,
 } from 'react-chartjs-2';
 
 import {
@@ -13,6 +15,9 @@ import {
   ArcElement,
   Tooltip,
   Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
 } from 'chart.js';
 
 import Sidebar from '../components/Sidebar';
@@ -27,7 +32,10 @@ import {
 ChartJS.register(
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement
 );
 
 function Dashboard() {
@@ -38,6 +46,7 @@ function Dashboard() {
     title: '',
     amount: '',
     category: '',
+    date: '',
   });
 
   const [editingId, setEditingId] = useState(null);
@@ -47,7 +56,22 @@ function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState('');
 
   const totalExpenses = expenses.reduce(
-    (total, expense) => total + Number(expense.amount),
+    (total, expense) =>
+      total + Number(expense.amount),
+    0
+  );
+
+  const weeklyExpenses = expenses
+    .slice(-7)
+    .reduce(
+      (total, expense) =>
+        total + Number(expense.amount),
+      0
+    );
+
+  const monthlyExpenses = expenses.reduce(
+    (total, expense) =>
+      total + Number(expense.amount),
     0
   );
 
@@ -100,6 +124,85 @@ function Dashboard() {
         ],
 
         borderWidth: 1,
+      },
+    ],
+  };
+
+  const weekDays = [
+    'Sun',
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+  ];
+
+  const weeklyData = new Array(7).fill(0);
+
+  expenses.forEach((expense) => {
+
+    if (!expense.date) return;
+
+    const day = new Date(expense.date).getDay();
+
+    weeklyData[day] += Number(expense.amount);
+
+  });
+
+  const monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  const monthlyData = new Array(12).fill(0);
+
+  expenses.forEach((expense) => {
+
+    if (!expense.date) return;
+
+    const month = new Date(expense.date).getMonth();
+
+    monthlyData[month] += Number(expense.amount);
+
+  });
+
+  const weeklyBarData = {
+
+    labels: weekDays,
+
+    datasets: [
+      {
+        label: 'Weekly Expenses',
+
+        data: weeklyData,
+
+        backgroundColor: '#3B82F6',
+      },
+    ],
+  };
+
+  const monthlyBarData = {
+
+    labels: monthNames,
+
+    datasets: [
+      {
+        label: 'Monthly Expenses',
+
+        data: monthlyData,
+
+        backgroundColor: '#10B981',
       },
     ],
   };
@@ -165,6 +268,7 @@ function Dashboard() {
         title: '',
         amount: '',
         category: '',
+        date: '',
       });
 
     } catch (error) {
@@ -199,46 +303,55 @@ function Dashboard() {
       title: expense.title,
       amount: expense.amount,
       category: expense.category,
+      date: expense.date
+        ? expense.date.split('T')[0]
+        : '',
     });
   };
+
   const downloadPDF = () => {
 
-  const doc = new jsPDF();
+    const doc = new jsPDF();
 
-  doc.text(
-    'Expense Tracker Report',
-    14,
-    15
-  );
+    doc.text(
+      'Expense Tracker Report',
+      14,
+      15
+    );
 
-  const tableColumn = [
-    'Title',
-    'Amount',
-    'Category',
-  ];
-
-  const tableRows = [];
-
-  filteredExpenses.forEach((expense) => {
-
-    const expenseData = [
-      expense.title,
-      expense.amount,
-      expense.category,
+    const tableColumn = [
+      'Title',
+      'Amount',
+      'Category',
+      'Date',
     ];
 
-    tableRows.push(expenseData);
+    const tableRows = [];
 
-  });
+    filteredExpenses.forEach((expense) => {
 
-  autoTable(doc, {
-    head: [tableColumn],
-    body: tableRows,
-    startY: 25,
-  });
+      const expenseData = [
+        expense.title,
+        expense.amount,
+        expense.category,
+        expense.date
+          ? new Date(expense.date)
+              .toLocaleDateString()
+          : '',
+      ];
 
-  doc.save('expenses-report.pdf');
-};
+      tableRows.push(expenseData);
+
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 25,
+    });
+
+    doc.save('expenses-report.pdf');
+  };
 
   const handleLogout = () => {
 
@@ -271,9 +384,10 @@ function Dashboard() {
 
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
 
           <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+
             <h2 className="text-xl font-semibold">
               Total Expenses
             </h2>
@@ -281,9 +395,11 @@ function Dashboard() {
             <p className="text-3xl mt-4">
               ₹{totalExpenses}
             </p>
+
           </div>
 
           <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+
             <h2 className="text-xl font-semibold">
               Total Transactions
             </h2>
@@ -291,9 +407,35 @@ function Dashboard() {
             <p className="text-3xl mt-4">
               {filteredExpenses.length}
             </p>
+
           </div>
 
           <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+
+            <h2 className="text-xl font-semibold">
+              Weekly Expenses
+            </h2>
+
+            <p className="text-3xl mt-4">
+              ₹{weeklyExpenses}
+            </p>
+
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+
+            <h2 className="text-xl font-semibold">
+              Monthly Expenses
+            </h2>
+
+            <p className="text-3xl mt-4">
+              ₹{monthlyExpenses}
+            </p>
+
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+
             <h2 className="text-xl font-semibold">
               Budget Status
             </h2>
@@ -301,17 +443,18 @@ function Dashboard() {
             <p className="text-3xl mt-4">
               Active
             </p>
+
           </div>
 
         </div>
 
-       <div
-  id="analytics"
-  className="bg-gray-800 p-6 rounded-2xl mb-8"
->
+        <div
+          id="analytics"
+          className="bg-gray-800 p-6 rounded-2xl mb-8"
+        >
 
           <h2 className="text-2xl font-bold mb-6">
-            Expense Analytics
+            Expense Category Analytics
           </h2>
 
           <div className="max-w-md mx-auto">
@@ -321,24 +464,49 @@ function Dashboard() {
           </div>
 
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+          <div className="bg-gray-800 p-6 rounded-2xl">
+
+            <h2 className="text-2xl font-bold mb-6">
+              Weekly Expense Analytics
+            </h2>
+
+            <Bar data={weeklyBarData} />
+
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-2xl">
+
+            <h2 className="text-2xl font-bold mb-6">
+              Monthly Expense Analytics
+            </h2>
+
+            <Bar data={monthlyBarData} />
+
+          </div>
+
+        </div>
+
         <div className="flex gap-4 mb-8">
 
-  <button
-    onClick={downloadPDF}
-    className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg"
-  >
-    Download PDF
-  </button>
+          <button
+            onClick={downloadPDF}
+            className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg"
+          >
+            Download PDF
+          </button>
 
-  <CSVLink
-    data={filteredExpenses}
-    filename="expenses-report.csv"
-    className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded-lg"
-  >
-    Download CSV
-  </CSVLink>
+          <CSVLink
+            data={filteredExpenses}
+            filename="expenses-report.csv"
+            className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded-lg"
+          >
+            Download CSV
+          </CSVLink>
 
-</div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
 
@@ -378,7 +546,7 @@ function Dashboard() {
 
         <form
           onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"
+          className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8"
         >
 
           <input
@@ -408,18 +576,28 @@ function Dashboard() {
             className="p-3 rounded-lg bg-gray-800"
           />
 
+          <input
+            type="date"
+            name="date"
+            value={formData.date}
+            onChange={handleChange}
+            className="p-3 rounded-lg bg-gray-800"
+          />
+
           <button
             className="bg-green-600 hover:bg-green-700 rounded-lg"
           >
-            {editingId ? 'Update Expense' : 'Add Expense'}
+            {editingId
+              ? 'Update Expense'
+              : 'Add Expense'}
           </button>
 
         </form>
 
         <div
-  id="expenses"
-  className="space-y-4"
->
+          id="expenses"
+          className="space-y-4"
+        >
 
           {filteredExpenses.map((expense) => (
 
@@ -436,6 +614,13 @@ function Dashboard() {
 
                 <p>
                   ₹{expense.amount} • {expense.category}
+                </p>
+
+                <p className="text-sm text-gray-400 mt-1">
+                  {expense.date
+                    ? new Date(expense.date)
+                        .toLocaleDateString()
+                    : 'No Date'}
                 </p>
 
               </div>
@@ -461,20 +646,21 @@ function Dashboard() {
             </div>
 
           ))}
-          <div
-  id="settings"
-  className="bg-gray-800 p-6 rounded-2xl mt-8"
->
 
-  <h2 className="text-2xl font-bold mb-4">
-    Settings
-  </h2>
+        </div>
 
-  <p>
-    More settings features coming soon...
-  </p>
+        <div
+          id="settings"
+          className="bg-gray-800 p-6 rounded-2xl mt-8"
+        >
 
-</div>
+          <h2 className="text-2xl font-bold mb-4">
+            Settings
+          </h2>
+
+          <p>
+            More settings features coming soon...
+          </p>
 
         </div>
 

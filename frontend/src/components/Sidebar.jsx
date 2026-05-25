@@ -4,7 +4,7 @@ function Sidebar() {
 
   return (
 
-    <div className="w-64 min-h-screen bg-gray-950 text-white p-6">
+    <div className="w-64 h-screen sticky top-0 bg-gray-950 text-white p-6">
 
       <h1 className="text-3xl font-bold mb-10">
         ExpenseTracker
